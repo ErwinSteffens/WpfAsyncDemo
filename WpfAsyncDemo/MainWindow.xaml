@@ -2,19 +2,27 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wpfAsyncDemo="clr-namespace:WpfAsyncDemo"
-        Title="MainWindow" SizeToContent="WidthAndHeight">
+        Title="MainWindow" 
+        SizeToContent="WidthAndHeight"
+        Deactivated="OnDeactivated">
     <Window.Resources>
         <wpfAsyncDemo:TimeSpanConverter x:Key="timeSpanConverter"/>
     </Window.Resources>
     <StackPanel>
+        <TextBlock Text="Initialization running"/>
+        <CheckBox IsChecked="{Binding Path=Initialization.IsNotCompleted, Mode=OneWay}" IsEnabled="False"/>
+        <Button Content="Cancel init task" Command="{Binding CancelInitCommand, Mode=OneWay}" Margin="0,0,0,20"/>
+        
         <TextBlock Text="Enter a string to be reversed."/>
         <TextBox Text="{Binding Path=Input, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
         <TextBlock Text="Specify the delay (in seconds) of the async operation"/>
         <TextBox Text="{Binding Path=Delay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource timeSpanConverter}, Mode=TwoWay}"/>
+        
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
             <Button Content="Reverse" Command="{Binding ReverseAsyncCommand, Mode=OneWay}" CommandParameter="{Binding Path=Input, Mode=OneWay}"/>
             <Button Content="Cancel" Command="{Binding ReverseAsyncCommand.CancelCommand, Mode=OneWay}"/>
         </StackPanel>
+        
         <TextBlock Text="Output:"/>
         <TextBox Text="{Binding Path=Output, Mode=OneWay}"/>
     </StackPanel>

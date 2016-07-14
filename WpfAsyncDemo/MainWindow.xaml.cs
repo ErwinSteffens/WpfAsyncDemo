@@ -14,10 +14,14 @@ namespace WpfAsyncDemo
         [ImplementPropertyChanged]
         protected class DataModel : IDisposable
         {
-            private readonly CancellationTokenSource cts = new CancellationTokenSource();
+            private readonly CancellationTokenSource initializationCancelToken = new CancellationTokenSource();
             private bool isDisposed;
 
-            public ICommand ReverseAsyncCommand { get; }
+            private DelegateCommand cancelInitCommand;
+            private AsyncCommand<string> reverseAsyncCommand;
+
+            public ICommand ReverseAsyncCommand => this.reverseAsyncCommand ?? (this.reverseAsyncCommand = new AsyncCommand<string>(this.OnTestAsyncCommandHandler, this.OnCanTestAsyncCommandHandler));
+            public ICommand CancelInitCommand => this.cancelInitCommand ?? (this.cancelInitCommand = new DelegateCommand(this.OnCancelInitCommand));
 
             public string Input { get; set; }
             public TimeSpan Delay { get; set; }
@@ -26,14 +30,32 @@ namespace WpfAsyncDemo
 
             public DataModel()
             {
-                this.ReverseAsyncCommand = new AsyncCommand<string>(this.OnTestAsyncCommandHandler, this.OnCanTestAsyncCommandHandler);
                 this.Input = "Test string";
                 this.Delay = TimeSpan.FromSeconds(5);
 
-                this.Initialization = NotifyTaskCompletion.Create(this.StartLongRunningAsyncCommand(this.cts.Token));
+                this.Initialization = NotifyTaskCompletion.Create(this.InitializeAsync(this.initializationCancelToken.Token));
+                this.Initialization.PropertyChanged += (sender, args) =>
+                {
+                    if (args.PropertyName == nameof(INotifyTaskCompletion.IsCompleted))
+                    {
+                        CommandManager.InvalidateRequerySuggested();
+                    }
+                };
             }
 
-            private async Task StartLongRunningAsyncCommand(CancellationToken cancellationToken)
+            public void Dispose()
+            {
+                if (!this.isDisposed)
+                {
+                    // Cancel operation
+                    this.initializationCancelToken.Cancel();
+
+                    // We're disposed
+                    this.isDisposed = true;
+                }
+            }
+
+            private async Task InitializeAsync(CancellationToken cancellationToken)
             {
                 // Do some actions, when the cancellation token is set
                 // (you could also cancel HTTP requests or other thing from here)
@@ -59,6 +81,11 @@ namespace WpfAsyncDemo
                 }
             }
 
+            private void OnCancelInitCommand()
+            {
+                this.initializationCancelToken.Cancel();
+            }
+
             private bool OnCanTestAsyncCommandHandler(string arg)
             {
                 return this.Delay > TimeSpan.Zero && !string.IsNullOrEmpty(this.Input);
@@ -79,21 +106,11 @@ namespace WpfAsyncDemo
                     // Handle cancellation
                     this.Output = "--canceled--";
                 }
-
-                // Cancel our long running command
-                this.cts.Cancel();
             }
 
-            public void Dispose()
+            public void CancelInitialization()
             {
-                if (!this.isDisposed)
-                {
-                    // Cancel operation
-                    this.cts.Cancel();
-
-                    // We're disposed
-                    this.isDisposed = true;
-                }
+                this.initializationCancelToken.Cancel();
             }
         }
 
@@ -110,6 +127,11 @@ namespace WpfAsyncDemo
 
             // Load the data model
             this.DataContext = this.dataModel;
+        }
+
+        private void OnDeactivated(object sender, EventArgs e)
+        {
+            this.dataModel.CancelInitialization();
         }
     }
 }
