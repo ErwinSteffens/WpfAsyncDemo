@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Nito.AsyncEx;
 using PropertyChanged;
 
 namespace WpfAsyncDemo
@@ -11,7 +12,7 @@ namespace WpfAsyncDemo
     public partial class MainWindow
     {
         [ImplementPropertyChanged]
-        private class DataModel : IDisposable
+        protected class DataModel : IDisposable
         {
             private readonly CancellationTokenSource cts = new CancellationTokenSource();
             private bool isDisposed;
@@ -21,6 +22,7 @@ namespace WpfAsyncDemo
             public string Input { get; set; }
             public TimeSpan Delay { get; set; }
             public string Output { get; private set; }
+            public INotifyTaskCompletion Initialization { get; set; }
 
             public DataModel()
             {
@@ -28,10 +30,10 @@ namespace WpfAsyncDemo
                 this.Input = "Test string";
                 this.Delay = TimeSpan.FromSeconds(5);
 
-                this.StartLongRunningAsyncCommand(this.cts.Token);
+                this.Initialization = NotifyTaskCompletion.Create(this.StartLongRunningAsyncCommand(this.cts.Token));
             }
 
-            private async void StartLongRunningAsyncCommand(CancellationToken cancellationToken)
+            private async Task StartLongRunningAsyncCommand(CancellationToken cancellationToken)
             {
                 // Do some actions, when the cancellation token is set
                 // (you could also cancel HTTP requests or other thing from here)
